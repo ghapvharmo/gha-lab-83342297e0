@@ -1,4 +1,4 @@
-name: Artifact Probe
+name: Artifact Probe 2
 
 on:
   push:
@@ -8,26 +8,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  u-v2:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Write file
-        run: echo "probe v2" > pr_num.txt
-      - name: Upload v2
-        uses: actions/upload-artifact@v2
-        with:
-          name: pr_num_v2
-          path: ./pr_num.txt
-  u-sha-v3:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Write file
-        run: echo "probe sha-v3" > pr_num.txt
-      - name: Upload v3 (SHA-pinned, as lab monkey-ci.yml does)
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.2
-        with:
-          name: pr_num_sha3
-          path: ./pr_num.txt
   u-v4:
     runs-on: ubuntu-latest
     steps:
@@ -39,50 +19,59 @@ jobs:
           name: pr_num_v4
           path: ./pr_num.txt
 
-  d-v2:
-    needs: [u-v2, u-sha-v3, u-v4]
-    if: always()
+  u-legacy:
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for artifact index
-        run: sleep 20
-      - name: dawidd6 download (v2 artifact)
-        uses: dawidd6/action-download-artifact@891cccee4b25d3306cf5edafa174ddc1d969871f
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.run_id }}
-          name: pr_num_v2
-      - name: Show extracted
-        run: ls -la && cat pr_num.txt
+      - name: Write file
+        run: echo "probe legacy-manual" > pr_num.txt
+      - name: Probe ACTIONS env names
+        run: env | grep -oE '^ACTIONS_[A-Z_]+' | sort
+      - name: Manual legacy upload via @actions/artifact@1
+        run: |
+          workdir="$(mktemp -d)"
+          cd "$workdir"
+          npm init -y >/dev/null 2>&1
+          npm install @actions/artifact@1.1.2 --no-save --no-audit --no-fund
+          mkdir -p upload
+          echo "probe legacy-manual" > upload/pr_num.txt
+          node -e "
+            const artifact = require('@actions/artifact');
+            const client = artifact.create();
+            client.uploadArtifact('pr_num_legacy', ['upload/pr_num.txt'], 'upload')
+              .then(r => console.log('UPLOAD RESULT ' + JSON.stringify(r)))
+              .catch(e => { console.error('UPLOAD FAILED: ' + e.message); process.exit(1); });
+          "
 
-  d-sha-v3:
-    needs: [u-v2, u-sha-v3, u-v4]
+  d-v4:
+    needs: [u-v4, u-legacy]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Sleep
         run: sleep 20
-      - name: dawidd6 download (v3 SHA artifact)
+      - name: dawidd6 download (v4)
         uses: dawidd6/action-download-artifact@891cccee4b25d3306cf5edafa174ddc1d969871f
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: artifact-probe.yml
           run_id: ${{ github.run_id }}
-          name: pr_num_sha3
+          name: pr_num_v4
       - name: Show extracted
         run: ls -la && cat pr_num.txt
 
-  d-v4:
-    needs: [u-v2, u-sha-v3, u-v4]
+  d-legacy:
+    needs: [u-v4, u-legacy]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Sleep
         run: sleep 25
-      - name: dawidd6 download (v4)
+      - name: dawidd6 download (legacy manual)
         uses: dawidd6/action-download-artifact@891cccee4b25d3306cf5edafa174ddc1d969871f
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: artifact-probe.yml
           run_id: ${{ github.run_id }}
-          name: pr_num_v4
+          name: pr_num_legacy
       - name: Show extracted
         run: ls -la && cat pr_num.txt
