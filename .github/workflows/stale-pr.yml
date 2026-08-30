@@ -1,0 +1,15 @@
+name: "Mark Stale PRs"
+on:
+  workflow_dispatch:
+permissions:
+  pull-requests: write
+
+jobs:
+  stale:
+    timeout-minutes: 20
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/stale@1160a2240286f5da8ec72b1c0816ce2481aabf84 # v8
+        with:
+          stale-pr-message: "This PR is stale. Please trigger a re-run of the PR check action."
+          days-before-stale: 7
