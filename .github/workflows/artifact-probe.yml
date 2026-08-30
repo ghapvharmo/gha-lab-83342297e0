@@ -1,0 +1,88 @@
+name: Artifact Probe
+
+on:
+  push:
+    branches: [artifact-probe]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  u-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write file
+        run: echo "probe v2" > pr_num.txt
+      - name: Upload v2
+        uses: actions/upload-artifact@v2
+        with:
+          name: pr_num_v2
+          path: ./pr_num.txt
+  u-sha-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write file
+        run: echo "probe sha-v3" > pr_num.txt
+      - name: Upload v3 (SHA-pinned, as lab monkey-ci.yml does)
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.2
+        with:
+          name: pr_num_sha3
+          path: ./pr_num.txt
+  u-v4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write file
+        run: echo "probe v4" > pr_num.txt
+      - name: Upload v4
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr_num_v4
+          path: ./pr_num.txt
+
+  d-v2:
+    needs: [u-v2, u-sha-v3, u-v4]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for artifact index
+        run: sleep 20
+      - name: dawidd6 download (v2 artifact)
+        uses: dawidd6/action-download-artifact@891cccee4b25d3306cf5edafa174ddc1d969871f
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.run_id }}
+          name: pr_num_v2
+      - name: Show extracted
+        run: ls -la && cat pr_num.txt
+
+  d-sha-v3:
+    needs: [u-v2, u-sha-v3, u-v4]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sleep
+        run: sleep 20
+      - name: dawidd6 download (v3 SHA artifact)
+        uses: dawidd6/action-download-artifact@891cccee4b25d3306cf5edafa174ddc1d969871f
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.run_id }}
+          name: pr_num_sha3
+      - name: Show extracted
+        run: ls -la && cat pr_num.txt
+
+  d-v4:
+    needs: [u-v2, u-sha-v3, u-v4]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sleep
+        run: sleep 25
+      - name: dawidd6 download (v4)
+        uses: dawidd6/action-download-artifact@891cccee4b25d3306cf5edafa174ddc1d969871f
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.run_id }}
+          name: pr_num_v4
+      - name: Show extracted
+        run: ls -la && cat pr_num.txt
